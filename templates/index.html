@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="weather-main">
+            <div class="weather-header">
+                <div class="weather-icon">
+                    <img id="weatherIcon" src="" alt="Weather Icon">
+                </div>
+                <div class="weather-info">
+                    <h1 id="currentTemp">24°</h1>
+                    <p id="weatherDescription">Partly Cloud</p>
+                    <p id="location">Current Location</p>
+                </div>
+            </div>
+            <div class="weather-details">
+                <p>↑ <span id="highTemp">17°</span> ↓ <span id="lowTemp">4°</span></p>
+            </div>
+        </div>
+        <div class="weather-forecast" id="hourlyForecast">
+            <!-- Hourly forecast items will be inserted here -->
+        </div>
+    </div>
+    <input type="text" id="cityInput" placeholder="Entrez le nom d'une ville">
+    <button onclick="getWeatherByCity()">Localiser</button>
+    <div id="weatherInfo"></div>
+    <canvas id="weatherChart"></canvas>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            getWeatherByLocation();
+        });
+
+        function getWeatherByCity() {
+            const city = document.getElementById('cityInput').value;
+            fetch('/weather', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ city: city })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    displayWeather(data);
+                });
+        }
+
+        function getWeatherByLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    fetch('/weather', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ lat: lat, lon: lon })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            displayWeather(data);
+                        });
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+
+        function displayWeather(data) {
+            const weatherIcon = document.getElementById('weatherIcon');
+            const currentTemp = document.getElementById('currentTemp');
+            const weatherDescription = document.getElementById('weatherDescription');
+            const location = document.getElementById('location');
+            const highTemp = document.getElementById('highTemp');
+            const lowTemp = document.getElementById('lowTemp');
+            const hourlyForecast = document.getElementById('hourlyForecast');
+
+            const iconCode = data.list[0].weather[0].icon;
+            weatherIcon.src = `/static/icons/${iconCode}.png`;
+            currentTemp.textContent = `${data.list[0].main.temp}°`;
+            weatherDescription.textContent = data.list[0].weather[0].description;
+            location.textContent = data.city.name;
+            highTemp.textContent = `${Math.max(...data.list.map(item => item.main.temp_max))}°`;
+            lowTemp.textContent = `${Math.min(...data.list.map(item => item.main.temp_min))}°`;
+
+            // Display hourly forecast
+            hourlyForecast.innerHTML = ''; // Clear previous forecast
+            data.list.slice(0, 8).forEach((item, index) => {
+                const time = new Date(item.dt_txt).getHours();
+                const icon = item.weather[0].icon;
+                const temp = item.main.temp;
+                hourlyForecast.innerHTML += `
+                    <div class="forecast-item">
+                        <p>${time}:00</p>
+                        <img src="/static/icons/${icon}.png" class="forecast-icon" alt="Icon">
+                        <p class="forecast-temp">${temp}°</p>
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+
+</html>
